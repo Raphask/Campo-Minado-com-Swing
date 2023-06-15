@@ -2,8 +2,9 @@ package raphask.com.github.modelo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
-import raphask.com.github.excecao.ExplosãoException;
+
 
 public class Campo {
 private int coluna;
@@ -14,12 +15,21 @@ private boolean minado;
 private boolean marcado;
 
 List<Campo> campo = new ArrayList<>();
-
-  public Campo(int coluna, int linha) {
+private List<CampoObservadores> 
+observadores = new ArrayList<>();
+  
+ public Campo(int coluna, int linha) {
 	this.linha = linha;
 	this.coluna = coluna;
-}
- boolean adicionarVizinhos(Campo vizinho) {
+	}
+ 
+ public void registrarObservador(CampoObservadores e) {
+		observadores.add(e);
+	}
+ private void notificarObservadores(CampoEvento cE) {
+	 observadores.stream().forEach(o -> o.eventoOcorreu(this, cE));
+ }
+boolean adicionarVizinhos(Campo vizinho) {
 boolean linhaVizinha = linha != vizinho.linha;
 boolean colunaVizinha = coluna != vizinho.coluna;
 boolean diagonal = linhaVizinha && colunaVizinha;
@@ -46,19 +56,29 @@ else if (deltaGeral == 2 && !diagonal) {
 }
  }
  
- void alternarMarcação() {
+ public void alternarMarcação() {
 	 if (!aberto) {
       marcado = !marcado;
+      
+      if (marcado) {
+		notificarObservadores(CampoEvento.MARCAR);
+	}else {
+		notificarObservadores(CampoEvento.DESMARCAR);
+	}
 	 }
   }
- boolean abrir() {
+ public boolean abrir() {
  if(!aberto && !marcado) {
 	 aberto = true;
  
  if (minado) {
- throw new ExplosãoException();
+notificarObservadores(CampoEvento.EXPLODIR);
+ return true;
  
-}if (vizinhançaSegura()) {
+ }
+ setAberto(true);
+ 
+ if (vizinhançaSegura()) {
  campo.forEach(v -> v.abrir());
 }
   return true;
@@ -67,7 +87,7 @@ return false;
 }
  
  }
-boolean vizinhançaSegura() {
+public boolean vizinhançaSegura() {
 return campo.stream().noneMatch(v-> v.minado);
 }
 public boolean isMarcado() {
@@ -82,6 +102,9 @@ public boolean isMinado() {
 
  void setAberto(boolean aberto) {
  this.aberto = aberto;
+ if (aberto) {
+ notificarObservadores(CampoEvento.ABRIR);
+}
 }
 public boolean isAberto() {
 	return aberto;
@@ -100,13 +123,14 @@ boolean objetivoAlcançado() {
 	boolean protegido = minado && isMarcado();
 	return desvendado || protegido;
 }
-long minasNaVizinhanca() {
-	return campo.stream().filter(v -> v.minado).count();
+public int minasNaVizinhanca() {
+	return (int) campo.stream().filter(v -> v.minado).count();
 }
 void reiniciar() {
 	aberto = false;
 	minado = false;
 	marcado = false;
+	notificarObservadores(CampoEvento.REINICIAR);
 }
 public String toString() {
 	if (marcado) {
